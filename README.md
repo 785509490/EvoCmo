@@ -25,7 +25,7 @@ These test suites represent a diverse range of constrained multi-objective optim
 
 ## 3. How to Run the Algorithm 
 
-This codebase is built as an extension of the [EvoX](https://github.com/EMI-Group/evox) framework. To set up the environment, please refer to the EvoX README for detailed instructions.
+This codebase is built as an extension of the [EvoX](https://github.com/EMI-Group/evox) 1.1.2 framework. To set up the environment, please refer to the EvoX README for detailed instructions.
 
 To run a test demo of our algorithm, follow these steps:
 
