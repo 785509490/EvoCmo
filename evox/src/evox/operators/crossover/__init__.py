@@ -5,6 +5,7 @@ __all__ = [
     "DE_arithmetic_recombination",
     "DE_crossover",
     "simulated_binary",
+    "simulated_binaryF",
     "simulated_binary_half",
 ]
 
@@ -17,3 +18,4 @@ from .differential_evolution import (
 )
 from .sbx import simulated_binary
 from .sbx_half import simulated_binary_half
+from .sbxF import simulated_binaryF

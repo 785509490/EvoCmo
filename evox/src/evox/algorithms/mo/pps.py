@@ -273,5 +273,6 @@ class PPS(Algorithm):
         merge_fit = torch.cat([self.archfit, self.fit], dim=0)
         merge_cons = torch.cat([self.archcons, self.cons], dim=0)
         self.archpop, self.archfit, _, _, self.archcons = nd_environmental_selection_cons(merge_pop, merge_fit, merge_cons, self.pop_size)
+        #self.archpop, self.archfit, _, _, self.archcons = nd_environmental_selection_cons(merge_pop, merge_fit, merge_cons, self.pop_size)
         if self.gen >= self.max_gen:
             self.pop, self.fit, _, _, self.cons = nd_environmental_selection_cons(merge_pop, merge_fit, merge_cons, self.pop_size)

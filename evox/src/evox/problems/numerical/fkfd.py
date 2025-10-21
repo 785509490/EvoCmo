@@ -109,6 +109,7 @@ def fkfd_func(self, X: torch.Tensor) -> torch.Tensor:
     返回:
     包含目标函数和约束的字典
     """
+    X = torch.round(X)
     device = X.device
     Missile = self.Prob.Missile
     Radar = self.Prob.Radar
@@ -181,11 +182,61 @@ def fkfd_func(self, X: torch.Tensor) -> torch.Tensor:
         valid_hits = cur_hit_p * valid_mask.float()  # 有效命中值 [n]
         f += valid_hits
     # 汇总目标函数
-    f = 1 / (f + 1e-4)
+    f1 = 1 / (f + 1e-4).unsqueeze(1)
+    f2 =torch.count_nonzero(launch_missile, dim=1).unsqueeze(1)
+    f = torch.cat([f1, f2], dim=1)
     return f
 
-class FKFD(FKFDTestSuit):
-    def __init__(self, scenario_idx: int = None):
+class FKFD1(FKFDTestSuit):
+    def __init__(self, scenario_idx: int = 1):
+        self.Prob = SetParameter(scenario_idx)
+        super().__init__()
+
+        # 将关键参数转换为张量
+        self.time_scatter = torch.tensor(self.Prob.dT, dtype=torch.float32)
+        radar_type_indices = self.Prob.Radar.type.astype(int) - 1  # 类型索引从0开始
+        self.radar_n_channel = torch.tensor(
+            [self.Prob.Radar.nChannel[idx] for idx in radar_type_indices],
+            dtype=torch.float32
+        )
+        self.radar_coefficient = torch.tensor(
+            self.Prob.Radar.coefficient, dtype=torch.float32
+        )
+        self.launch_num = torch.tensor(
+            self.Prob.Missile.num_type, dtype=torch.int32
+        )
+        self.Prob.Target.type = torch.from_numpy(self.Prob.Target.type.astype(int))
+        self.Prob.Radar.type = torch.from_numpy(self.Prob.Radar.type.astype(int))
+
+    def _true_evaluate(self, X: torch.Tensor) -> torch.Tensor:
+        return fkfd_func(self, X)
+
+class FKFD2(FKFDTestSuit):
+    def __init__(self, scenario_idx: int = 2):
+        self.Prob = SetParameter(scenario_idx)
+        super().__init__()
+
+        # 将关键参数转换为张量
+        self.time_scatter = torch.tensor(self.Prob.dT, dtype=torch.float32)
+        radar_type_indices = self.Prob.Radar.type.astype(int) - 1  # 类型索引从0开始
+        self.radar_n_channel = torch.tensor(
+            [self.Prob.Radar.nChannel[idx] for idx in radar_type_indices],
+            dtype=torch.float32
+        )
+        self.radar_coefficient = torch.tensor(
+            self.Prob.Radar.coefficient, dtype=torch.float32
+        )
+        self.launch_num = torch.tensor(
+            self.Prob.Missile.num_type, dtype=torch.int32
+        )
+        self.Prob.Target.type = torch.from_numpy(self.Prob.Target.type.astype(int))
+        self.Prob.Radar.type = torch.from_numpy(self.Prob.Radar.type.astype(int))
+
+    def _true_evaluate(self, X: torch.Tensor) -> torch.Tensor:
+        return fkfd_func(self, X)
+
+class FKFD3(FKFDTestSuit):
+    def __init__(self, scenario_idx: int = 3):
         self.Prob = SetParameter(scenario_idx)
         super().__init__()
 

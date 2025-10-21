@@ -739,20 +739,20 @@ class DC1_DTLZ1(DTLZ):
             return R  # 返回有效点的张量
 
         elif self.m == 3:
-            a = torch.linspace(0, 1, 60).view(-1, 1)  # 生成 10 个点并转为列向量
-            x = a @ a.T  # 形状 (10, 10)
-            y = a * (1 - a.T)  # 形状 (10, 10)
-            z = (1 - a) * torch.ones_like(x)  # 确保 z 也是 (10, 10)
+            a = torch.linspace(0, 1, 60).view(-1, 1)  # 生成 60 个点并转为列向量
+            x = a @ a.T  # 形状 (60, 60)
+            y = a * (1 - a.T)  # 形状 (60, 60)
+            z = (1 - a) * torch.ones_like(x)  # 确保 z 也是 (60, 60)
 
-            # 创建 mask
-            mask = torch.cos(3 * torch.pi * (a @ torch.ones((1, 10)))) < 0.5  # 扩展 a 以匹配形状
-            z[mask] = float('nan')  # 使用 mask 进行条件筛选
+            # 创建 mask - 使用广播
+            mask = torch.cos(3 * torch.pi * a) < 0.5  # 形状 (60, 1)
+            mask = mask.expand_as(z)  # 扩展到 (60, 60)
+            z[mask] = float('nan')
 
             # 合并并返回结果
-            # Flatten in a way to keep the tensors as 2D
             R = torch.cat([(x / 2).view(-1, 1), (y / 2).view(-1, 1), (z / 2).view(-1, 1)], dim=1)
             R = R[~torch.isnan(R).any(dim=1)]  # 删除所有行含有 na 的点
-            return R  # 返回的 R 是一个 (100, 3) 的张量
+            return R
 
         else:
             return torch.tensor([])  # 返回一个空的 Tensor

@@ -40,10 +40,12 @@ __all__ = [
     "PPS",
     "CMOEA_MS",
     "GMPEA",
-    "GMPEA2"
+    "GMPEA2",
+    "GMPEA3",
+    "GMPEA4"
 ]
 
-from .mo import MOEAD, NSGA2, NSGA3, RVEA, HypE, RVEAa, CCMO, TensorMOEAD, PPS, CMOEA_MS, GMPEA, GMPEA2, EMCMO
+from .mo import MOEAD, NSGA2, NSGA2F, NSGA3, RVEA, HypE, RVEAa, CCMO, TensorMOEAD, PPS, PPS2,CMOEA_MS, GMPEA, GMPEA2, EMCMO, GMPEA3, GMPEA4
 from .so import (
     ARS,
     ASEBO,

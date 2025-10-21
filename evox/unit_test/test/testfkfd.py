@@ -1,7 +1,7 @@
 import torch
 import time
 from evox.algorithms import GA
-from evox.problems.numerical import FKFD
+from evox.problems.numerical import FKFD1
 from evox.workflows import StdWorkflow, EvalMonitor
 import argparse
 
@@ -19,8 +19,8 @@ else:
 torch.set_default_device("cuda" if torch.cuda.is_available() else "cpu")
 print(torch.get_default_device())
 
-algorithm = GA(pop_size=2000, scenario_idx=args.SCENARIO_IDX)
-problem = FKFD(scenario_idx=args.SCENARIO_IDX)
+algorithm = GA(pop_size=100, scenario_idx=args.SCENARIO_IDX)
+problem = FKFD1(scenario_idx=args.SCENARIO_IDX)
 monitor = EvalMonitor()
 workflow = StdWorkflow(algorithm, problem, monitor)
 t = time.time()

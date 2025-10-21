@@ -588,7 +588,7 @@ class LIRCMOP10(LIRCMOP):
         return R
 
 class LIRCMOP11(LIRCMOP):
-    def __init__(self, d: int = 30, m: int = 2, ref_num: int = 1000):
+    def __init__(self, d: int = 70, m: int = 2, ref_num: int = 1000):
         super().__init__(d, m, ref_num)
 
     def constraint_lircmop11(self, PopObj: torch.Tensor) -> torch.Tensor:

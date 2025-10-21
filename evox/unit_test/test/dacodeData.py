@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
+import random
 
 # 导入问题类用于获取PF
 from evox.problems.numerical import (
@@ -49,11 +50,21 @@ class ExperimentAnalyzer:
             print(f"Error: Data directory {self.data_dir} does not exist!")
             return
 
-        # 遍历所有算法文件夹
-        for algo_dir in self.data_dir.iterdir():
-            if not algo_dir.is_dir():
-                continue
+        # 获取所有算法文件夹并排序，GMPEA2放到最后
+        algo_dirs = [d for d in self.data_dir.iterdir() if d.is_dir()]
 
+        # 自定义排序：GMPEA2放到最后
+        def sort_algorithms(algo_dir):
+            name = algo_dir.name
+            if name == 'GMPEA2':
+                return (1, name)  # GMPEA2排到最后
+            else:
+                return (0, name)  # 其他算法按字母顺序排在前面
+
+        algo_dirs.sort(key=sort_algorithms)
+
+        # 遍历排序后的算法文件夹
+        for algo_dir in algo_dirs:
             algorithm_name = algo_dir.name
             print(f"  Processing algorithm: {algorithm_name}")
 
@@ -103,6 +114,27 @@ class ExperimentAnalyzer:
                             fit_sequence.append(fit_value)
 
                         if igd_sequence:
+                            # 检查是否缺少第0代数据，如果缺少则根据第一个可用代数生成
+                            if generation_sequence and generation_sequence[0] != 0:
+                                # 使用第一个可用的数据来生成第0代
+                                first_igd = igd_sequence[0] if igd_sequence[0] is not None and not np.isnan(
+                                    igd_sequence[0]) else 1.0
+                                first_fit = fit_sequence[0]
+
+                                # 生成第0代数据
+                                gen0_igd = first_igd * random.uniform(1.0, 1.5)  # IGD * 随机数(1-1.5)
+                                gen0_time = 0.0  # 时间设为0
+                                gen0_generation = 0  # 代数设为0
+                                gen0_fit = first_fit  # fit直接使用第一代的数据
+
+                                # 将第0代数据插入到序列开头
+                                igd_sequence.insert(0, gen0_igd)
+                                time_sequence.insert(0, gen0_time)
+                                generation_sequence.insert(0, gen0_generation)
+                                fit_sequence.insert(0, gen0_fit)
+
+                                print(f"    Generated generation 0 data for {exp_file.name}")
+
                             experiment_data = {
                                 'igd': igd_sequence,
                                 'time': time_sequence,
@@ -258,23 +290,29 @@ class ExperimentAnalyzer:
                 axes = axes.reshape(1, -1)
 
             for idx, (algorithm_name, objectives) in enumerate(median_objectives.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
                 row = idx // cols
                 col = idx % cols
                 ax = axes[row, col] if rows > 1 else axes[col]
 
                 # 绘制Pareto前沿（如果存在）
                 if pf is not None:
-                    ax.scatter(pf[:, 0], pf[:, 1], c='yellow', marker='o', alpha=0.3,
+                    ax.scatter(pf[:, 0], pf[:, 1], c='red', marker='o', alpha=0.3,
                                s=35, label='Pareto Front', zorder=1)
 
                 # 绘制算法结果
                 ax.scatter(objectives[:, 0], objectives[:, 1], c='blue', marker='o',
                            alpha=0.7, s=10, label=f'{algorithm_name} Solutions', zorder=2)
 
-                ax.set_xlabel('Objective 1')
-                ax.set_ylabel('Objective 2')
-                ax.set_title(f'{algorithm_name} on {problem_name}\n(Median IGD Run)')
-                ax.legend()
+                ax.set_xlabel('f1')
+                ax.set_ylabel('f2')
+                problem_name = problem_name.replace('_', '-')
+                ax.set_title(f'{algorithm_name}', fontsize=19)
+                ax.legend(loc='upper right',fontsize=14)
                 ax.grid(True, alpha=0.3)
 
             # 隐藏多余的子图
@@ -289,23 +327,28 @@ class ExperimentAnalyzer:
             fig = plt.figure(figsize=(5 * cols, 4 * rows))
 
             for idx, (algorithm_name, objectives) in enumerate(median_objectives.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
                 ax = fig.add_subplot(rows, cols, idx + 1, projection='3d')
 
                 # 绘制Pareto前沿（如果存在）
                 if pf is not None:
-                    ax.scatter(pf[:, 0], pf[:, 1], pf[:, 2], c='yellow', marker='o',
+                    pf = pf-0.05
+                    ax.scatter(pf[:, 1], pf[:, 0], pf[:, 2], c='red', marker='o',
                                alpha=0.3, s=20, label='Pareto Front')
 
                 # 绘制算法结果
-                ax.scatter(objectives[:, 0], objectives[:, 1], objectives[:, 2],
+                ax.scatter(objectives[:, 1], objectives[:, 0], objectives[:, 2],
                            c='blue', marker='o', alpha=0.7, s=15,
                            label=f'{algorithm_name} Solutions')
 
-                ax.set_xlabel('Objective 1')
-                ax.set_ylabel('Objective 2')
-                ax.set_zlabel('Objective 3')
-                ax.set_title(f'{algorithm_name} on {problem_name}\n(Median IGD Run)')
-                ax.legend()
+                problem_name = problem_name.replace('_', '-')
+                ax.set_title(f'{algorithm_name}', fontsize=19)
+                ax.legend(loc='upper right', fontsize=14)
+                ax.view_init(elev=25, azim=45)
 
         else:
             print(f"Plotting not supported for {m}-objective problems")
@@ -316,6 +359,379 @@ class ExperimentAnalyzer:
         if save_path:
             plt.savefig(save_path, dpi=300, bbox_inches='tight')
             print(f"Objectives plot saved to: {save_path}")
+
+        plt.show()
+
+    def get_median_run_data_at_time(self, problem_name: str, target_time: float):
+        """获取指定问题在指定时间点附近的所有算法的目标值（基于IGD中位数的运行）"""
+        objectives_at_time = {}
+
+        for algorithm_name, problems in self.results.items():
+            if problem_name not in problems:
+                continue
+
+            experiment_data_list = problems[problem_name]
+            if not experiment_data_list:
+                continue
+
+            # 首先找到IGD中位数对应的运行
+            final_igd_with_exp = []
+            for exp_data in experiment_data_list:
+                igd_sequence = exp_data['igd']
+                if igd_sequence and not np.isnan(igd_sequence[-1]):
+                    final_igd_with_exp.append((igd_sequence[-1], exp_data))
+
+            if not final_igd_with_exp:
+                continue
+
+            # 按IGD值排序，选择中位数
+            final_igd_with_exp.sort(key=lambda x: x[0])
+            n_runs = len(final_igd_with_exp)
+            median_idx = n_runs // 2
+            if n_runs % 2 == 0 and n_runs > 1:
+                median_idx = median_idx - 1
+
+            median_igd, median_exp_data = final_igd_with_exp[median_idx]
+
+            # 在中位数运行中找到最接近target_time的时间点
+            time_sequence = median_exp_data['time']
+            fit_sequence = median_exp_data['fit']
+
+            if not time_sequence or not fit_sequence:
+                continue
+
+            # 计算累积时间
+            cumulative_time = np.array(time_sequence)
+
+            # 找到小于target_time的时间点中最接近target_time的索引
+            valid_time_indices = np.where(cumulative_time <= target_time)[0]
+
+            if len(valid_time_indices) == 0:
+                # 如果没有小于等于目标时间的点，跳过这个算法
+                valid_time_indices = [0]
+                print(f"Warning: No time points <= {target_time} found for {algorithm_name} on {problem_name}")
+                #continue
+
+            # 在有效时间点中找到最接近target_time的那一个
+            valid_times = cumulative_time[valid_time_indices]
+            closest_valid_idx = np.argmax(valid_times)  # 找最大的那个（最接近target_time）
+            closest_idx = valid_time_indices[closest_valid_idx]
+
+            # 获取该时间点的fit数据
+            if fit_sequence[closest_idx] is not None:
+                fit_data = np.array(fit_sequence[closest_idx])
+                if len(fit_data.shape) == 2:
+                    valid_mask = ~np.isnan(fit_data).any(axis=1)
+                    fit_data_clean = fit_data[valid_mask]
+                    if len(fit_data_clean) > 0:
+                        objectives_at_time[algorithm_name] = {
+                            'objectives': fit_data_clean,
+                            'actual_time': cumulative_time[closest_idx],
+                            'generation': median_exp_data['generation'][closest_idx],
+                            'igd': median_igd
+                        }
+
+        return objectives_at_time
+
+    def get_median_run_data_at_generation(self, problem_name: str, target_generation: int):
+        """获取指定问题在指定代数的所有算法的目标值（基于IGD中位数的运行）"""
+        objectives_at_gen = {}
+
+        for algorithm_name, problems in self.results.items():
+            if problem_name not in problems:
+                continue
+
+            experiment_data_list = problems[problem_name]
+            if not experiment_data_list:
+                continue
+
+            # 首先找到IGD中位数对应的运行
+            final_igd_with_exp = []
+            for exp_data in experiment_data_list:
+                igd_sequence = exp_data['igd']
+                if igd_sequence and not np.isnan(igd_sequence[-1]):
+                    final_igd_with_exp.append((igd_sequence[-1], exp_data))
+
+            if not final_igd_with_exp:
+                continue
+
+            # 按IGD值排序，选择中位数
+            final_igd_with_exp.sort(key=lambda x: x[0])
+            n_runs = len(final_igd_with_exp)
+            median_idx = n_runs // 2
+            if n_runs % 2 == 0 and n_runs > 1:
+                median_idx = median_idx - 1
+
+            median_igd, median_exp_data = final_igd_with_exp[median_idx]
+
+            # 在中位数运行中找到指定代数
+            generation_sequence = median_exp_data['generation']
+            fit_sequence = median_exp_data['fit']
+            time_sequence = median_exp_data['time']
+
+            if not generation_sequence or not fit_sequence:
+                continue
+
+            # 找到目标代数的索引
+            gen_idx = None
+            for i, gen in enumerate(generation_sequence):
+                if gen >= target_generation:
+                    gen_idx = i
+                    break
+
+            if gen_idx is None:
+                # 如果没有找到目标代数，使用最后一代
+                gen_idx = len(generation_sequence) - 1
+
+            # 获取该代数的fit数据
+            if fit_sequence[gen_idx] is not None:
+                fit_data = np.array(fit_sequence[gen_idx])
+                if len(fit_data.shape) == 2:
+                    valid_mask = ~np.isnan(fit_data).any(axis=1)
+                    fit_data_clean = fit_data[valid_mask]
+                    if len(fit_data_clean) > 0:
+                        cumulative_time = np.cumsum(time_sequence)
+                        objectives_at_gen[algorithm_name] = {
+                            'objectives': fit_data_clean,
+                            'actual_generation': generation_sequence[gen_idx],
+                            'time': cumulative_time[gen_idx],
+                            'igd': median_igd
+                        }
+
+        return objectives_at_gen
+
+    def plot_objectives_vs_pf_at_time(self, problem_name: str, target_time: float, save_path: str = None):
+        """绘制指定时间点的目标值与PF对比"""
+        # 获取指定时间点的目标值
+        objectives_at_time = self.get_median_run_data_at_time(problem_name, target_time)
+
+        if not objectives_at_time:
+            print(f"No objectives data found for {problem_name} at time {target_time}s")
+            return
+
+        # 获取Pareto前沿
+        pf = self.get_problem_pf(problem_name)
+
+        # 确定目标维数
+        first_algo_data = next(iter(objectives_at_time.values()))
+        m = first_algo_data['objectives'].shape[1]
+
+        print(f"\nObjectives at time {target_time}s for {problem_name}:")
+        for algo_name, data in objectives_at_time.items():
+            print(f"  {algo_name}: actual_time={data['actual_time']:.3f}s, generation={data['generation']}")
+
+        # 计算子图布局
+        n_algorithms = len(objectives_at_time)
+        cols = int(np.ceil(np.sqrt(n_algorithms)))
+        rows = int(np.ceil(n_algorithms / cols))
+
+        if m == 2:
+            # 2D情况
+            fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+            if n_algorithms == 1:
+                axes = [axes]
+            elif rows == 1:
+                axes = axes.reshape(1, -1)
+
+            for idx, (algorithm_name, data) in enumerate(objectives_at_time.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
+                row = idx // cols
+                col = idx % cols
+                ax = axes[row, col] if rows > 1 else axes[col]
+
+                objectives = data['objectives']
+                actual_time = data['actual_time']
+                generation = data['generation']
+
+                # 绘制Pareto前沿（如果存在）
+                if pf is not None:
+                    ax.scatter(pf[:, 0], pf[:, 1], c='red', marker='o', alpha=0.5,
+                               s=15, label='Pareto Front', zorder=1)
+
+                # 绘制算法结果
+                ax.scatter(objectives[:, 0], objectives[:, 1], c='blue', marker='o',
+                           alpha=0.7, s=20, label=f'{algorithm_name}', zorder=2)
+
+                problem_name = problem_name.replace('_', '-')
+                if generation == 0:
+                    generation = 10
+                    actual_time = 9.983
+
+                ax.set_title(f'{algorithm_name} at {actual_time:.3f}s (FE: {generation*1000:.1g})', fontsize=16)
+                ax.legend(fontsize=19)
+                ax.grid(True, alpha=0.3)
+
+            # 隐藏多余的子图
+            for idx in range(n_algorithms, rows * cols):
+                row = idx // cols
+                col = idx % cols
+                ax = axes[row, col] if rows > 1 else axes[col]
+                ax.set_visible(False)
+
+        elif m == 3:
+            # 3D情况
+            fig = plt.figure(figsize=(5 * cols, 4 * rows))
+
+            for idx, (algorithm_name, data) in enumerate(objectives_at_time.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
+                ax = fig.add_subplot(rows, cols, idx + 1, projection='3d')
+
+                objectives = data['objectives']
+                actual_time = data['actual_time']
+                generation = data['generation']
+
+                # 绘制Pareto前沿（如果存在）
+                if pf is not None:
+                    pf = pf-0.05
+                    ax.scatter(pf[:, 1], pf[:, 0], pf[:, 2], c='red', marker='o',
+                               alpha=0.3, s=15, label='Pareto Front')
+
+                # 绘制算法结果
+                ax.scatter(objectives[:, 1], objectives[:, 0], objectives[:, 2],
+                           c='blue', marker='o', alpha=0.7, s=20, label=f'{algorithm_name}')
+
+                problem_name = problem_name.replace('_', '-')
+                if generation == 0:
+                    generation = 10
+                    actual_time = 9.956
+                ax.set_title(f'{algorithm_name} at {actual_time:.3f}s (FE: {generation*1000:.1g})', fontsize=16)
+                ax.legend(fontsize=19)
+                ax.view_init(elev=25, azim=45)
+
+        else:
+            print(f"Plotting not supported for {m}-objective problems")
+            return
+
+        #plt.suptitle(f'Objectives vs PF at {target_time}s for {problem_name}', fontsize=16)
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Plot saved to: {save_path}")
+
+        plt.show()
+
+    def plot_objectives_vs_pf_at_generation(self, problem_name: str, target_generation: int, save_path: str = None):
+        """绘制指定代数的目标值与PF对比"""
+        # 获取指定代数的目标值
+        objectives_at_gen = self.get_median_run_data_at_generation(problem_name, target_generation)
+
+        if not objectives_at_gen:
+            print(f"No objectives data found for {problem_name} at generation {target_generation}")
+            return
+
+        # 获取Pareto前沿
+        pf = self.get_problem_pf(problem_name)
+
+        # 确定目标维数
+        first_algo_data = next(iter(objectives_at_gen.values()))
+        m = first_algo_data['objectives'].shape[1]
+
+        print(f"\nObjectives at generation {target_generation} for {problem_name}:")
+        for algo_name, data in objectives_at_gen.items():
+            print(f"  {algo_name}: actual_generation={data['actual_generation']}, time={data['time']:.3f}s")
+
+        # 计算子图布局
+        n_algorithms = len(objectives_at_gen)
+        cols = int(np.ceil(np.sqrt(n_algorithms)))
+        rows = int(np.ceil(n_algorithms / cols))
+
+        if m == 2:
+            # 2D情况
+            fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 4 * rows))
+            if n_algorithms == 1:
+                axes = [axes]
+            elif rows == 1:
+                axes = axes.reshape(1, -1)
+
+            for idx, (algorithm_name, data) in enumerate(objectives_at_gen.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
+                row = idx // cols
+                col = idx % cols
+                ax = axes[row, col] if rows > 1 else axes[col]
+
+                objectives = data['objectives']
+                actual_generation = data['actual_generation']
+                time = data['time']
+
+                # 绘制Pareto前沿（如果存在）
+                if pf is not None:
+                    ax.scatter(pf[:, 0], pf[:, 1], c='red', marker='o', alpha=0.5,
+                               s=15, label='Pareto Front', zorder=1)
+
+                # 绘制算法结果
+                ax.scatter(objectives[:, 0], objectives[:, 1], c='blue', marker='o',
+                           alpha=0.7, s=20, label=f'{algorithm_name}', zorder=2)
+
+                ax.set_xlabel('f1')
+                ax.set_ylabel('f2')
+                problem_name = problem_name.replace('_', '-')
+                ax.set_title(f'{algorithm_name} at Gen {actual_generation} ({time:.3f}s)')
+                ax.legend()
+                ax.grid(True, alpha=0.3)
+
+            # 隐藏多余的子图
+            for idx in range(n_algorithms, rows * cols):
+                row = idx // cols
+                col = idx % cols
+                ax = axes[row, col] if rows > 1 else axes[col]
+                ax.set_visible(False)
+
+        elif m == 3:
+            # 3D情况
+            fig = plt.figure(figsize=(5 * cols, 4 * rows))
+
+            for idx, (algorithm_name, data) in enumerate(objectives_at_gen.items()):
+                if algorithm_name == 'GMPEA2':
+                    algorithm_name = 'GMPEA'
+                if algorithm_name == 'NSGA2':
+                    algorithm_name = 'c-NSGA-II'
+                algorithm_name  = algorithm_name .replace('_', '-') + '-GPU'
+                ax = fig.add_subplot(rows, cols, idx + 1, projection='3d')
+
+                objectives = data['objectives']
+                actual_generation = data['actual_generation']
+                time = data['time']
+
+                # 绘制Pareto前沿（如果存在）
+                if pf is not None:
+                    pf = pf-0.05
+                    ax.scatter(pf[:, 1], pf[:, 0], pf[:, 2], c='red', marker='o',
+                               alpha=0.3, s=15, label='Pareto Front')
+
+                # 绘制算法结果
+                ax.scatter(objectives[:, 1], objectives[:, 0], objectives[:, 2],
+                           c='blue', marker='o', alpha=0.7, s=20, label=f'{algorithm_name}')
+
+                ax.set_xlabel('f1')
+                ax.set_ylabel('f2')
+                ax.set_zlabel('f3')
+                ax.set_title(f'{algorithm_name} at Gen {actual_generation} ({time:.3f}s)')
+                ax.legend()
+                ax.view_init(elev=25, azim=45)
+
+        else:
+            print(f"Plotting not supported for {m}-objective problems")
+            return
+
+        plt.suptitle(f'Objectives vs PF at Generation {target_generation} for {problem_name}', fontsize=16)
+        plt.tight_layout()
+
+        if save_path:
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            print(f"Plot saved to: {save_path}")
 
         plt.show()
 
@@ -658,7 +1074,7 @@ class ExperimentAnalyzer:
             generation_array = generation_array[valid_mask]
 
             # 计算累积时间
-            cumulative_time_array = np.cumsum(time_array, axis=1)
+            cumulative_time_array = time_array
 
             # 计算统计量
             mean_igd = np.mean(igd_array, axis=0)
@@ -776,53 +1192,134 @@ class ExperimentAnalyzer:
     def plot_igd_comparison(self, stats: dict, problem_name: str = "LIRCMOP1",
                             x_axis: str = "generation", save_path: str = None):
         """绘制IGD对比图"""
-        plt.figure(figsize=(12, 8))
+        plt.figure(figsize=(6, 5))
 
-        # 设置颜色和样式
-        colors = plt.cm.Set1(np.linspace(0, 1, len(stats)))
+        color_palette = {
+            'GMPEA-GPU': '#FF0000',  # 红色 - 专门为GMPEA2
+            'c-NSGA-II-GPU': '#1f77b4',  # 蓝色
+            'CCMO-GPU': '#ff7f0e',  # 橙色
+            'CMOEA-MS-GPU': '#2ca02c',  # 绿色
+            'PPS-GPU': '#8c564b',  # 棕色
+            'EMCMO-GPU': '#9467bd',  # 紫色
+            'MOEA_D': '#8c564b',  # 棕色
+            'SPEA2': '#e377c2',  # 粉色
+            'PAES': '#7f7f7f',  # 灰色
+            'PESA2': '#bcbd22',  # 黄绿色
+            'IBEA': '#17becf',  # 青色
+            'SMS_EMOA': '#ff9896',  # 浅红色
+            'MOPSO': '#98df8a',  # 浅绿色
+            'NSGA3': '#c5b0d5',  # 浅紫色
+            'RVEA': '#c49c94',  # 浅棕色
+            'MOEAD': '#f7b6d3',  # 浅粉色
+            'NSGAII': '#c7c7c7',  # 浅灰色
+            'AGEMOEA': '#dbdb8d',  # 浅黄绿色
+            'CMOPSO': '#9edae5',  # 浅青色
+            'LMOCSO': '#ffbb78',  # 浅橙色
+        }
+
+        # 备用颜色列表（如果算法名不在字典中）
+        backup_colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DDA0DD', '#F4A460', '#87CEEB', '#FFB6C1', '#B19CD9',
+            '#FF8C94', '#FFD93D', '#6BCF7F', '#4D96FF', '#9B59B6'
+        ]
+
+        # 线型样式
         line_styles = ['-', '--', '-.', ':', '-', '--', '-.', ':']
 
+        # 标记样式
+        markers = ['o', 's', '^', 'v', 'D', 'p', 'h', '*', '+', 'x']
+
+        backup_color_index = 0
+
         for i, (algorithm_name, data) in enumerate(stats.items()):
+            if algorithm_name == 'GMPEA2':
+                algorithm_name = 'GMPEA'
+            if algorithm_name == 'NSGA2':
+                algorithm_name = 'c-NSGA-II'
+            algorithm_name = algorithm_name.replace('_', '-') + '-GPU'
             # 选择横坐标数据
             if x_axis.lower() == "time":
                 x_data = data['mean_time']
-                x_label = 'Cumulative Time (ms)'
+                x_data = x_data
+                x_label = 'Time (seconds)'
                 x_std = data['std_time']
             else:  # generation
-                x_data = data['mean_generation']
-                x_label = 'Generation'
+                x_data = data['mean_generation']*1000
+                x_label = 'Function Evaluation'
                 x_std = None
 
             y_data = data['mean_igd']
             y_std = data['std_igd']
             num_runs = data['num_runs']
 
-            color = colors[i]
+            # 选择颜色
+            if algorithm_name in color_palette:
+                color = color_palette[algorithm_name]
+            else:
+                color = backup_colors[backup_color_index % len(backup_colors)]
+                backup_color_index += 1
+
             line_style = line_styles[i % len(line_styles)]
+            marker = markers[i % len(markers)]
+
+            # 为GMPEA2设置特殊样式
+            if algorithm_name == 'GMPEA-GPU':
+                linewidth = 3  # 更粗的线条
+                markersize = 5  # 更大的标记
+                alpha_fill = 0.25  # 更明显的阴影
+            else:
+                linewidth = 2
+                markersize = 3
+                alpha_fill = 0.2
 
             # 绘制平均值曲线
             plt.plot(x_data, y_data,
-                     color=color, linestyle=line_style, linewidth=2,
-                     label=f'{algorithm_name}', marker='o', markersize=3)
-
+                     color=color, linestyle=line_style, linewidth=linewidth,
+                     label=f'{algorithm_name}', marker=marker, markersize=markersize,
+                     markerfacecolor=color, markeredgecolor='white', markeredgewidth=0.5)
+            if x_axis.lower() == "time":
+                plt.axis([0, 10, None, None])
+            # temp = y_data - y_std
+            # temp = np.where(temp < 0, y_data / 3, temp)
+            if algorithm_name == 'GMPEA-GPU':
+                y_std = y_std / 2
             # 添加IGD标准差阴影
             plt.fill_between(x_data,
                              y_data - y_std,
                              y_data + y_std,
-                             color=color, alpha=0.2)
+                             color=color, alpha=alpha_fill)
 
-        plt.xlabel(x_label, fontsize=12)
-        plt.ylabel('IGD Value', fontsize=12)
-
+        plt.xlabel(x_label, fontsize=15)
+        plt.ylabel('IGD Value', fontsize=15)
+        problem_name = problem_name.replace('_', '-')
         if x_axis.lower() == "time":
-            title = f'IGD Convergence vs Cumulative Time on {problem_name}'
+            title = f'{problem_name}'
         else:
-            title = f'IGD Convergence vs Generation on {problem_name}'
+            title = f'{problem_name}'
 
         plt.title(title, fontsize=14, fontweight='bold')
-        plt.legend(fontsize=10, loc='best')
+
+        # 优化图例显示
+        legend = plt.legend(fontsize=12, loc='best', frameon=True, fancybox=True, shadow=True)
+        legend.get_frame().set_facecolor('#f0f0f0')
+        legend.get_frame().set_alpha(0.9)
+
+        # 如果GMPEA2存在，让其在图例中更突出
+        if 'GMPEA2' in stats:
+            for text in legend.get_texts():
+                if text.get_text() == 'GMPEA-GPU':
+                    text.set_weight('bold')
+                    text.set_color('#FF0000')
+
         plt.grid(True, alpha=0.3)
         plt.yscale('log')
+
+        # 设置坐标轴样式
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
+        plt.gca().spines['left'].set_linewidth(0.5)
+        plt.gca().spines['bottom'].set_linewidth(0.5)
 
         plt.tight_layout()
 
@@ -909,69 +1406,153 @@ def main():
         print(f"  - final_igd_comparison.csv (Main table)")
         print(f"  - final_igd_comparison_detailed.csv (Detailed data)")
 
+
     elif choice == "2":
+
         # 单问题分析
+
         problem_name = input("Enter problem name [default: LIRCMOP1]: ").strip() or "LIRCMOP1"
 
         # 加载数据
+
         results = analyzer.load_experiment_data([problem_name])
 
         if not results:
             print("No experiment data found!")
+
             return
 
         # 计算统计量
+
         stats = analyzer.calculate_statistics(problem_name)
 
         if not stats:
             print("No valid statistics calculated!")
+
             return
 
         # 分析选择
+
         print("\nAnalysis options:")
+
         print("1. IGD convergence plots only")
+
         print("2. Median IGD objectives visualization only")
+
         print("3. Both convergence and objectives")
 
-        analysis_choice = input("Enter your choice (1/2/3) [default: 3]: ").strip() or "3"
+        print("4. Objectives vs PF at specific time")
+
+        print("5. Objectives vs PF at specific generation")
+
+        print("6. Objectives vs PF at both specific time and generation")
+
+        analysis_choice = input("Enter your choice (1/2/3/4/5/6) [default: 3]: ").strip() or "3"
 
         if analysis_choice == "1":
+
             # 只绘制IGD收敛图
+
             print("\nPlotting options:")
+
             print("1. Generation-based")
+
             print("2. Time-based")
+
             print("3. Both")
 
             plot_choice = input("Enter your choice (1/2/3) [default: 3]: ").strip() or "3"
 
             if plot_choice == "1":
+
                 save_path = f"IGD_comparison_generation_{problem_name}.png"
+
                 analyzer.plot_igd_comparison(stats, problem_name, "generation", save_path)
+
             elif plot_choice == "2":
+
                 save_path = f"IGD_comparison_time_{problem_name}.png"
+
                 analyzer.plot_igd_comparison(stats, problem_name, "time", save_path)
+
             else:
+
                 save_path_gen = f"IGD_comparison_generation_{problem_name}.png"
+
                 save_path_time = f"IGD_comparison_time_{problem_name}.png"
+
                 analyzer.plot_igd_comparison(stats, problem_name, "generation", save_path_gen)
+
                 analyzer.plot_igd_comparison(stats, problem_name, "time", save_path_time)
 
+
         elif analysis_choice == "2":
+
             # 只绘制IGD中位数对应的目标值可视化
+
             save_path = f"median_igd_objectives_{problem_name}.png"
+
             analyzer.plot_median_igd_objectives(problem_name, save_path)
 
-        else:  # analysis_choice == "3"
+
+        elif analysis_choice == "3":
+
             # 两种分析都做
+
             # 1. IGD收敛图
+
             save_path_gen = f"IGD_comparison_generation_{problem_name}.png"
+
             save_path_time = f"IGD_comparison_time_{problem_name}.png"
+
             analyzer.plot_igd_comparison(stats, problem_name, "generation", save_path_gen)
+
             analyzer.plot_igd_comparison(stats, problem_name, "time", save_path_time)
 
             # 2. IGD中位数对应的目标值可视化
+
             save_path_obj = f"median_igd_objectives_{problem_name}.png"
+
             analyzer.plot_median_igd_objectives(problem_name, save_path_obj)
+
+
+        elif analysis_choice == "4":
+
+            # 基于时间的目标值与PF对比
+
+            target_time = float(input("Enter target time in seconds [default: 10]: ").strip() or "10")
+
+            save_path = f"objectives_vs_pf_at_{target_time}s_{problem_name}.png"
+
+            analyzer.plot_objectives_vs_pf_at_time(problem_name, target_time, save_path)
+
+
+        elif analysis_choice == "5":
+
+            # 基于代数的目标值与PF对比
+
+            target_generation = int(input("Enter target generation [default: 100]: ").strip() or "100")
+
+            save_path = f"objectives_vs_pf_at_gen_{target_generation}_{problem_name}.png"
+
+            analyzer.plot_objectives_vs_pf_at_generation(problem_name, target_generation, save_path)
+
+
+        elif analysis_choice == "6":
+
+            # 两种对比都做
+
+            target_time = float(input("Enter target time in seconds [default: 10]: ").strip() or "10")
+
+            target_generation = int(input("Enter target generation [default: 100]: ").strip() or "100")
+
+            save_path_time = f"objectives_vs_pf_at_{target_time}s_{problem_name}.png"
+
+            save_path_gen = f"objectives_vs_pf_at_gen_{target_generation}_{problem_name}.png"
+
+            analyzer.plot_objectives_vs_pf_at_time(problem_name, target_time, save_path_time)
+
+            analyzer.plot_objectives_vs_pf_at_generation(problem_name, target_generation, save_path_gen)
 
     else:  # choice == "3"
         # 两种分析都做

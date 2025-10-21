@@ -2,7 +2,7 @@ import time
 import torch
 import matplotlib.pyplot as plt
 
-from evox.algorithms import NSGA2, MOEAD, CCMO, NSGA3, TensorMOEAD, PPS, CMOEA_MS, GMPEA, GMPEA2, EMCMO,PPS2
+from evox.algorithms import NSGA2, NSGA2F,MOEAD, CCMO, NSGA3, TensorMOEAD, PPS, CMOEA_MS, GMPEA, GMPEA2, EMCMO
 from evox.metrics import igd
 from evox.problems.numerical import FKFD1,FKFD2,FKFD3
 from evox.problems.numerical import C1_DTLZ1,DTLZ1,DTLZ3,DTLZ2,C2_DTLZ2,C1_DTLZ3,C3_DTLZ4,DC1_DTLZ1,DC1_DTLZ3,DC2_DTLZ1,DC2_DTLZ3,DC3_DTLZ1,DC3_DTLZ3,DTLZ1
@@ -10,18 +10,25 @@ from evox.problems.numerical import MW1, MW2, MW3, MW4, MW5, MW6, MW7, MW8, MW9,
 from evox.problems.numerical import LIRCMOP1, LIRCMOP2, LIRCMOP3 ,LIRCMOP4, LIRCMOP5, LIRCMOP6, LIRCMOP7, LIRCMOP8, LIRCMOP9, LIRCMOP10, LIRCMOP11, LIRCMOP12, LIRCMOP13, LIRCMOP14
 from evox.workflows import StdWorkflow, EvalMonitor
 from evox.operators.crossover import simulated_binary, DE_crossover, simulated_binaryF
+from evox.operators.mutation import polynomial_mutationF
 
-device = "cpu"
+device = "cuda"
 # Use GPU first to run the code.
 torch.set_default_device(device)
 print(torch.get_default_device())
-max_gen = 1000
+max_gen = 100
 
 # Init the problem, algorithm and workflow.
-prob = LIRCMOP4()
-pf = prob.pf().cpu()
-m = prob.m
-algo = GMPEA2(pop_size=1000, n_objs=prob.m, lb=-torch.zeros(prob.d), ub=torch.ones(prob.d), max_gen=max_gen)
+prob = FKFD1()
+# pf = prob.pf()
+m = 2
+
+dim =len(prob.Prob.data_len[0])
+lb = torch.ones(1, dim).squeeze(0)
+ub = prob.Prob.data_len.repeat(1, 1).squeeze(0).float()
+a = lb.dtype == ub.dtype
+b = lb.device == ub.device
+algo = NSGA2F(pop_size=100, n_objs=2, lb=lb, ub=ub, max_gen=max_gen, crossover_op=simulated_binaryF, mutation_op=polynomial_mutationF)
 
 
 monitor = EvalMonitor()
@@ -38,15 +45,15 @@ for i in range(max_gen):
     if i % 10 == 0:
         run_time = time.time() - t
         print(
-            f"The IGD is {igd(fit, pf)} in {run_time:.4f} seconds at the {i + 1}th generation.")
+            f"The IGD is  in {run_time:.4f} seconds at the {i + 1}th generation.")
 fit = workflow.algorithm.fit
 #cons = workflow.algorithm.cons
 fit = fit[~torch.isnan(fit).any(dim=1)]
 run_time = time.time() - t
 print(
-    f"The IGD is {igd(fit, pf)} in {run_time:.4f} seconds at the {max_gen}th generation.")
+    f"The IGD is  in {run_time:.4f} seconds at the {max_gen}th generation.")
 
-pf = pf.cpu()  # 这里将 pf 从 CUDA 转换为 CPU
+#pf = pf.cpu()  # 这里将 pf 从 CUDA 转换为 CPU
 # fig = monitor.plot(problem_pf=pf)
 # fig.show()
 #
@@ -59,15 +66,13 @@ if m == 3:
     objective_2 = fit[:, 1].cpu().numpy()  # 第二目标（y坐标）
     objective_3 = fit[:, 2].cpu().numpy()  # 第三目标（z坐标）
 
-    PF_1 = pf[:, 0].numpy()
-    PF_2 = pf[:, 1].numpy()
-    PF_3 = pf[:, 2].numpy()
+#
 
     # 创建散点图
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
     ax.scatter(objective_1, objective_2, objective_3, c='blue', marker='o', alpha=0.99, label='Objective Values')
-    ax.scatter(PF_1, PF_2, PF_3, c='yellow', marker='o', alpha=0.3, label='Pareto Front')
+    #ax.scatter(PF_1, PF_2, PF_3, c='yellow', marker='o', alpha=0.3, label='Pareto Front')
     ax.set_xlabel('Objective 1 (x)')
     ax.set_ylabel('Objective 2 (y)')
     ax.set_zlabel('Objective 3 (z)')
@@ -79,12 +84,11 @@ else:
     objective_1 = fit[:, 0].cpu().numpy()  # 第一目标（x坐标）
     objective_2 = fit[:, 1].cpu().numpy()  # 第二目标（y坐标）
 
-    PF_1 = pf[:, 0].numpy()
-    PF_2 = pf[:, 1].numpy()
+
 
     # 创建散点图
     plt.figure(figsize=(8, 6))
-    plt.scatter(PF_1, PF_2, c='yellow', marker='o', alpha=0.5, label='Pareto Front', s = 50)
+    #plt.scatter(PF_1, PF_2, c='yellow', marker='o', alpha=0.5, label='Pareto Front', s = 50)
     plt.scatter(objective_1, objective_2, c='blue', marker='o', alpha=0.99, label='Objective Values', s=10)
     plt.xlabel('Objective 1 (x)')
     plt.ylabel('Objective 2 (y)')

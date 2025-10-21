@@ -34,6 +34,15 @@ def weighted_sum(f, w):
 
 
 def shuffle_rows(matrix: torch.Tensor) -> torch.Tensor:
+    """
+    Shuffle each row of the given matrix independently without using a for loop.
+
+    Args:
+        matrix (torch.Tensor): A 2D tensor.
+
+    Returns:
+        torch.Tensor: A new tensor with each row shuffled differently.
+    """
     rows, cols = matrix.size()
 
     permutations = torch.argsort(torch.rand(rows, cols, device=matrix.device), dim=1)
@@ -50,7 +59,26 @@ def lhs_population(pop_size, dim, lb, ub, device="cuda"):
     # 映射到 [lb, ub]
     return lb + pop * (ub - lb)
 
-class GMPEA2(Algorithm):
+class GMPEA4(Algorithm):
+    """
+    TensorMOEA/D
+
+    This is a tensorized implementation of the original MOEA/D algorithm, which incorporates GPU acceleration
+    for improved computational performance in solving multi-objective optimization problems.
+
+    :references:
+        [1] Q. Zhang and H. Li, "MOEA/D: A Multiobjective Evolutionary Algorithm Based on Decomposition,"
+            IEEE Transactions on Evolutionary Computation, vol. 11, no. 6, pp. 712-731, 2007. Available:
+            https://ieeexplore.ieee.org/document/4358754
+
+        [2] Z. Liang, H. Li, N. Yu, K. Sun, and R. Cheng, "Bridging Evolutionary Multiobjective Optimization and
+            GPU Acceleration via Tensorization," IEEE Transactions on Evolutionary Computation, 2025. Available:
+            https://ieeexplore.ieee.org/document/10944658
+
+    :note: This implementation differs from the original MOEA/D algorithm by incorporating tensorization for
+            GPU acceleration, significantly improving performance for large-scale optimization tasks.
+    """
+
     def __init__(
         self,
         pop_size: int,
@@ -64,7 +92,18 @@ class GMPEA2(Algorithm):
         crossover_op: Optional[Callable] = None,
         device: torch.device | None = None,
     ):
+        """Initializes the TensorMOEA/D algorithm.
 
+        :param pop_size: The size of the population.
+        :param n_objs: The number of objective functions in the optimization problem.
+        :param lb: The lower bounds for the decision variables (1D tensor).
+        :param ub: The upper bounds for the decision variables (1D tensor).
+        :param aggregate_op: The aggregation function to use for the algorithm (optional).
+        :param selection_op: The selection operation for evolutionary strategy (optional).
+        :param mutation_op: The mutation operation, defaults to `polynomial_mutation` if not provided (optional).
+        :param crossover_op: The crossover operation, defaults to `simulated_binary` if not provided (optional).
+        :param device: The device on which computations should run (optional). Defaults to PyTorch's default device.
+        """
 
         super().__init__()
         self.pop_size = pop_size
@@ -93,7 +132,7 @@ class GMPEA2(Algorithm):
         self.pop_size = w.size(0)
         assert self.pop_size > 10, "Population size must be greater than 10. Please reset the population size."
         self.n_neighbor = int(math.ceil(self.pop_size / 20))
-        self.n_neighbor2 = int(math.ceil(self.pop_size / 5))
+        self.n_neighbor2 = int(math.ceil(self.pop_size / 20))
 
         length = ub - lb
         #population = torch.rand(self.pop_size, self.dim, device=device)

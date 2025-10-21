@@ -6,18 +6,18 @@ from pathlib import Path
 from typing import Dict, List, Any
 import numpy as np
 
-from evox.algorithms import NSGA2, MOEAD, CCMO, NSGA3, TensorMOEAD, PPS, CMOEA_MS, GMPEA, GMPEA2, GMPEA3, GMPEA4, EMCMO,PPS2
-from evox.metrics import igd
+from evox.algorithms import NSGA2,NSGA2F, MOEAD, CCMO, NSGA3, TensorMOEAD, PPS, CMOEA_MS, GMPEA, GMPEA2, GMPEA3, GMPEA4, EMCMO
+from evox.metrics import igd,hv
 from evox.problems.numerical import (
     C1_DTLZ1, DTLZ1, DTLZ3, DTLZ2, C2_DTLZ2, C1_DTLZ3, C3_DTLZ4,
     DC1_DTLZ1, DC1_DTLZ3, DC2_DTLZ1, DC2_DTLZ3, DC3_DTLZ1, DC3_DTLZ3,
     MW1, MW2, MW3, MW4, MW5, MW6, MW7, MW8, MW9, MW10, MW11, MW12, MW13, MW14,
     LIRCMOP1, LIRCMOP2, LIRCMOP3, LIRCMOP4, LIRCMOP5, LIRCMOP6, LIRCMOP7,
-    LIRCMOP8, LIRCMOP9, LIRCMOP10, LIRCMOP11, LIRCMOP12, LIRCMOP13, LIRCMOP14
+    LIRCMOP8, LIRCMOP9, LIRCMOP10, LIRCMOP11, LIRCMOP12, LIRCMOP13, LIRCMOP14, FKFD1,FKFD2,FKFD3
 )
 from evox.workflows import StdWorkflow, EvalMonitor
-from evox.operators.crossover import simulated_binary, DE_crossover
-from evox.operators.mutation import polynomial_mutation
+from evox.operators.crossover import simulated_binary, DE_crossover,simulated_binaryF
+from evox.operators.mutation import polynomial_mutation,polynomial_mutationF
 
 
 class BatchExperiment:
@@ -57,18 +57,34 @@ class BatchExperiment:
 
         # 初始化问题和算法
         prob = problem_class()
-        pf = prob.pf()
+        pf = []
 
-        # 获取算法参数
-        algo_params = {
-            'pop_size': self.config['pop_size'],
-            'n_objs': prob.m,
-            'lb': -torch.zeros(prob.d),
-            'ub': torch.ones(prob.d),
-            'max_gen': self.config['max_gen'],
-            'crossover_op': self.config['crossover_op'],
-            'mutation_op': self.config['mutation_op']
-        }
+
+        if self.config['isFKFD']:
+            dim = len(prob.Prob.data_len[0])
+            lb = torch.ones(1, dim).squeeze(0)
+            ub = prob.Prob.data_len.repeat(1, 1).squeeze(0).float()
+            algo_params = {
+                'pop_size': self.config['pop_size'],
+                'n_objs': 2,
+                'lb': lb,
+                'ub': ub,
+                'max_gen': self.config['max_gen'],
+                'crossover_op': simulated_binaryF,
+                'mutation_op': polynomial_mutationF
+            }
+        else:
+            pf = prob.pf()
+            # 获取算法参数
+            algo_params = {
+                'pop_size': self.config['pop_size'],
+                'n_objs': prob.m,
+                'lb': -torch.zeros(prob.d),
+                'ub': torch.ones(prob.d),
+                'max_gen': self.config['max_gen'],
+                'crossover_op': self.config['crossover_op'],
+                'mutation_op': self.config['mutation_op']
+            }
 
         # 处理不同算法的特定参数
         if algorithm_name in ['NSGA3', 'TensorMOEAD']:
@@ -103,7 +119,7 @@ class BatchExperiment:
 
             # 获取当前代数据
             current_time = time.time() - start_time
-            if type(workflow.algorithm) == type(PPS) or type(workflow.algorithm) == type(PPS2):
+            if type(workflow.algorithm) == type(PPS):
                 fit = workflow.algorithm.archfit
             else:
                 fit = workflow.algorithm.fit
@@ -111,7 +127,7 @@ class BatchExperiment:
             # 处理约束（如果存在）
             cons = None
             if hasattr(workflow.algorithm, 'cons') and workflow.algorithm.cons is not None:
-                if type(workflow.algorithm) == type(PPS) or type(workflow.algorithm) == type(PPS2):
+                if type(workflow.algorithm) == type(PPS):
                     cons = workflow.algorithm.archcons
                 else:
                     cons = workflow.algorithm.cons
@@ -119,7 +135,7 @@ class BatchExperiment:
             # 获取决策变量
             pop = None
             if hasattr(workflow.algorithm, 'pop') and workflow.algorithm.pop is not None:
-                if type(workflow.algorithm) == type(PPS or type(workflow.algorithm) == type(PPS2)):
+                if type(workflow.algorithm) == type(PPS):
                     pop = workflow.algorithm.archpop
                 else:
                     pop = workflow.algorithm.pop
@@ -155,7 +171,11 @@ class BatchExperiment:
             # 计算IGD（如果可能）
             if fit_clean is not None and len(fit_clean) > 0:
                 try:
-                    igd_value = igd(fit_clean, pf).item()
+                    if self.config['isFKFD']:
+                        ref = torch.ones(2)
+                        igd_value = hv(fit_clean,torch.ones(2)).item()
+                    else:
+                        igd_value = igd(fit_clean, pf).item()
                     gen_data['igd'] = igd_value
                 except:
                     gen_data['igd'] = None
@@ -257,43 +277,46 @@ def main():
     # 实验配置
     config = {
         # 公共参数
-        'max_gen': 1000,
-        'pop_size': 1000,
-        'crossover_op':simulated_binary,
+        'max_gen': 100,
+        'pop_size': 100,
+        'crossover_op':DE_crossover,
         'mutation_op':polynomial_mutation,
-        'num_runs': 3,  # 独立重复实验次数
+        'num_runs': 1,  # 独立重复实验次数
         'device': 'cuda',
         'base_dir': 'E:/codePY/newevox-main/data',
+        'isFKFD': True,
 
         # 算法配置
         'algorithms': {
-            'PPS2': PPS2,
+            # 'PPS': PPS,
             # 'NSGA2':NSGA2,
             # 'CCMO':CCMO,
             # 'CMOEA_MS':CMOEA_MS,
             # 'EMCMO':EMCMO,
-            #'GMPEA2':GMPEA2,
+            # 'GMPEA2':GMPEA2,
+            'NSGA2F':NSGA2F
         },
 
         # 问题配置
         'problems': {
-            'C1_DTLZ1': C1_DTLZ1,
-            'C2_DTLZ2': C2_DTLZ2,
-            'C1_DTLZ3': C1_DTLZ3,
-            'C3_DTLZ4': C3_DTLZ4,
-            'DC1_DTLZ1': DC1_DTLZ1,
-            'DC1_DTLZ3': DC1_DTLZ3,
-            'DC2_DTLZ1': DC2_DTLZ1,
-            'DC2_DTLZ3': DC2_DTLZ3,
-            'DC3_DTLZ1': DC3_DTLZ1,
-            'DC3_DTLZ3': DC3_DTLZ3,
-            'LIRCMOP1': LIRCMOP1,
-            'LIRCMOP2': LIRCMOP2,
-            'LIRCMOP3': LIRCMOP3,
-            'LIRCMOP4': LIRCMOP4,
-            'LIRCMOP5': LIRCMOP5,
-            'LIRCMOP6': LIRCMOP6,
-            'LIRCMOP7': LIRCMOP7,
+            'FKFD1':FKFD1,
+            # 'C1_DTLZ1': C1_DTLZ1,
+            # 'C2_DTLZ2': C2_DTLZ2,
+            # 'C1_DTLZ3': C1_DTLZ3,
+            # 'C3_DTLZ4': C3_DTLZ4,
+            # 'DC1_DTLZ1': DC1_DTLZ1,
+            # 'DC1_DTLZ3': DC1_DTLZ3,
+            # 'DC2_DTLZ1': DC2_DTLZ1,
+            # 'DC2_DTLZ3': DC2_DTLZ3,
+            # 'DC3_DTLZ1': DC3_DTLZ1,
+            # 'DC3_DTLZ3': DC3_DTLZ3,
+            # 'LIRCMOP1': LIRCMOP1,
+            # 'LIRCMOP2': LIRCMOP2,
+            # 'LIRCMOP3': LIRCMOP3,
+            # 'LIRCMOP4': LIRCMOP4,
+            # 'LIRCMOP5': LIRCMOP5,
+            # 'LIRCMOP6': LIRCMOP6,
+            # 'LIRCMOP7': LIRCMOP7,
             # 'LIRCMOP8': LIRCMOP8,
             # 'LIRCMOP9': LIRCMOP9,
             # 'LIRCMOP10': LIRCMOP10,
