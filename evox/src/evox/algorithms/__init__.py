@@ -1,5 +1,4 @@
 __all__ = [
-    "GA",
     # DE Variants
     "DE",
     "SHADE",
@@ -39,13 +38,10 @@ __all__ = [
     "TensorMOEAD",
     "PPS",
     "CMOEA_MS",
-    "GMPEA",
     "GMPEA2",
-    "GMPEA3",
-    "GMPEA4"
 ]
 
-from .mo import MOEAD, NSGA2, NSGA2F, NSGA3, RVEA, HypE, RVEAa, CCMO, TensorMOEAD, PPS, PPS2,CMOEA_MS, GMPEA, GMPEA2, EMCMO, GMPEA3, GMPEA4
+from .mo import MOEAD, NSGA2, NSGA3, RVEA, HypE, RVEAa, CCMO, TensorMOEAD, PPS, PPS2,CMOEA_MS,  GMPEA2, EMCMO
 from .so import (
     ARS,
     ASEBO,
@@ -72,5 +68,4 @@ from .so import (
     PersistentES,
     SaDE,
     SeparableNES,
-    GA,
 )

@@ -27,10 +27,8 @@ __all__ = [
     "PSO",
     "SLPSOGS",
     "SLPSOUS",
-    "GA",
 ]
 
 from .de_variants import DE, ODE, SHADE, CoDE, JaDE, SaDE
 from .es_variants import ARS, ASEBO, CMAES, DES, ESMC, SNES, XNES, GuidedES, NoiseReuseES, OpenES, PersistentES, SeparableNES
 from .pso_variants import CLPSO, CSO, DMSPSOEL, FSPSO, PSO, SLPSOGS, SLPSOUS
-from .fkfd_variants import GA
