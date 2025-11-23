@@ -29,20 +29,6 @@ __all__ = [
     "DC2_DTLZ3",
     "DC3_DTLZ1",
     "DC3_DTLZ3",
-    "MW1",
-    "MW2",
-    "MW3",
-    "MW4",
-    "MW5",
-    "MW6",
-    "MW7",
-    "MW8",
-    "MW9",
-    "MW10",
-    "MW11",
-    "MW12",
-    "MW13",
-    "MW14",
     "LIRCMOP1",
     "LIRCMOP2",
     "LIRCMOP3",
@@ -75,5 +61,4 @@ from .basic import (
 )
 from .cec2022 import CEC2022
 from .dtlz import DTLZ1, DTLZ2, DTLZ3, DTLZ4, DTLZ5, DTLZ6, DTLZ7, C1_DTLZ1, C2_DTLZ2, C1_DTLZ3, C3_DTLZ4, DC1_DTLZ1, DC1_DTLZ3, DC2_DTLZ1,DC2_DTLZ3,DC3_DTLZ1,DC3_DTLZ3
-from .mw import MW1, MW2, MW3, MW4, MW5, MW6, MW7, MW8, MW9, MW10, MW11, MW12, MW13, MW14
 from .lircmop import LIRCMOP1, LIRCMOP2, LIRCMOP3, LIRCMOP4, LIRCMOP5, LIRCMOP6, LIRCMOP7, LIRCMOP8, LIRCMOP9, LIRCMOP10, LIRCMOP11, LIRCMOP12, LIRCMOP13, LIRCMOP14

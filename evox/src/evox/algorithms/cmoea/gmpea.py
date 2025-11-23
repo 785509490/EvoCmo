@@ -50,7 +50,10 @@ def lhs_population(pop_size, dim, lb, ub, device="cuda"):
     # 映射到 [lb, ub]
     return lb + pop * (ub - lb)
 
-class GMPEA2(Algorithm):
+class GMPEA(Algorithm):
+    """
+        Fully Tensorized GPU-accelerated Multi-population Evolutionary Algorithm for Constrained Multiobjective Optimization Problems
+    """
     def __init__(
         self,
         pop_size: int,

@@ -4,10 +4,9 @@ import time
 import torch
 import matplotlib.pyplot as plt
 
-from evox.algorithms import NSGA2, MOEAD, CCMO, NSGA3, TensorMOEAD, PPS, CMOEA_MS, GMPEA2, EMCMO,PPS2
+from evox.algorithms import C_NSGA2,  CCMO,  PPS, CMOEA_MS, GMPEA, EMCMO, C_RVEA
 from evox.metrics import igd
 from evox.problems.numerical import C1_DTLZ1,DTLZ1,DTLZ3,DTLZ2,C2_DTLZ2,C1_DTLZ3,C3_DTLZ4,DC1_DTLZ1,DC1_DTLZ3,DC2_DTLZ1,DC2_DTLZ3,DC3_DTLZ1,DC3_DTLZ3,DTLZ1
-from evox.problems.numerical import MW1, MW2, MW3, MW4, MW5, MW6, MW7, MW8, MW9, MW10, MW11, MW12, MW13, MW14
 from evox.problems.numerical import LIRCMOP1, LIRCMOP2, LIRCMOP3 ,LIRCMOP4, LIRCMOP5, LIRCMOP6, LIRCMOP7, LIRCMOP8, LIRCMOP9, LIRCMOP10, LIRCMOP11, LIRCMOP12, LIRCMOP13, LIRCMOP14
 from evox.workflows import StdWorkflow, EvalMonitor
 from evox.operators.crossover import simulated_binary, DE_crossover, simulated_binaryF
@@ -16,13 +15,13 @@ device = "cuda"
 # Use GPU first to run the code.
 torch.set_default_device(device)
 print(torch.get_default_device())
-max_gen = 1000
+max_gen = 500
 
 # Init the problem, algorithm and workflow.
 prob = LIRCMOP9()
 pf = prob.pf()
 m = prob.m
-algo = GMPEA2(pop_size=1000, n_objs=prob.m, lb=-torch.zeros(prob.d), ub=torch.ones(prob.d), max_gen=max_gen, crossover_op=DE_crossover)
+algo = GMPEA(pop_size=100, n_objs=prob.m, lb=-torch.zeros(prob.d), ub=torch.ones(prob.d), max_gen=max_gen, crossover_op=DE_crossover)
 
 
 monitor = EvalMonitor()

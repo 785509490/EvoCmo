@@ -6,15 +6,15 @@ This repository contains the source code for the algorithm presented in the pape
 
 *Fully Tensorized GPU-accelerated Multi-population Evolutionary Algorithm for Constrained Multiobjective Optimization Problems*
 
-[[arXiv:2509.19821](https://arxiv.org/abs/2509.19821)]
+The code of this project is developed based on the extension of [EvoX](https://github.com/EMI-Group/evox) framework.
 
 This paper introduces a novel evolutionary algorithm designed to leverage the power of GPUs for solving constrained multi-objective optimization problems efficiently. 
 
 ## 2. Comparative CMOEA Algorithms and Test Problems
 
-This implementation includes the proposed algorithm, GMPEA2, and a set of established benchmark problems and comparative algorithms tailored for GPU environments:
+This implementation includes the proposed algorithm, GMPEA, and a set of established benchmark problems and comparative algorithms tailored for GPU environments:
 
-*   **Comparative CMOEA Algorithms:**  The repository includes GPU-optimized versions of several state-of-the-art Constrained Multi-objective Evolutionary Algorithms (CMOEAs) for performance comparison. (CCMO, CMOEA-MS, PPS, NSGA-II, EMCMO)
+*   **Comparative CMOEA Algorithms:**  The repository includes GPU-optimized versions of several state-of-the-art Constrained Multi-objective Evolutionary Algorithms (CMOEAs) for performance comparison. (c-rvea,CCMO, CMOEA-MS, PPS, NSGA-II, EMCMO)
 
 *   **Test Problems:** We provide the following benchmark test suites:
     *   C-DTLZ Test Suite
@@ -44,15 +44,4 @@ Thank you for your interest in our work. We hope this codebase proves valuable f
 
 Please cite the following paper if you use this code in your research:
 
-@article{huang2025fully,
-title={Fully Tensorized GPU-accelerated Multi-population Evolutionary Algorithm for Constrained Multiobjective Optimization Problems},
-author={Huang, Weixiong and Wang, Rui and Li, Wenhua and Qi, Sheng and Luo, Tianyu and Chen, Delong and Zhang, Tao and Wang, Ling},
-journal={arXiv preprint arXiv:2509.19821},
-year={2025}
-}
-
-This work was supported by the Scientific Research Project of Xiang Jiang Lab (22XJ02003), the University Fundamental Research Fund (23-ZZCX-JDZ-28), the National Science Fund for Outstanding Young Scholars (62122093), the National Natural Science Foundation of China (72071205), the National University of Defense Technology Youth Innovation Science Fund Project (ZK25-62), the science and technology innovation Program of Hunan Province (ZC23112101-10), and the Hunan Natural Science Foundation Regional Joint Project (2023JJ50490). 
-
-The authors would like to thank the support by the COSTA: complex system optimization team of the College of System Engineering at NUDT.
-
-College of Systems Engineering, National University of Defense Technology, Changsha 410073, China (e-mail: huangweixiong@nudt.edu.cn)
+Due to the policy of anonymous review, the author's information is not provided at present.

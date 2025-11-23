@@ -3,16 +3,16 @@ from typing import Callable, Optional
 import torch
 
 from evox.core import Algorithm, Mutable, Parameter
-from evox.operators.crossover import simulated_binary
+from evox.operators.crossover import simulated_binary,DE_crossover
 from evox.operators.mutation import polynomial_mutation
 from evox.operators.sampling import uniform_sampling
-from evox.operators.selection import ref_vec_guided
+from evox.operators.selection import ref_vec_guided2
 from evox.utils import clamp, nanmax, nanmin
 
 
-class RVEA(Algorithm):
+class C_RVEA(Algorithm):
     """
-    A tensorized implementation of the Reference Vector Guided Evolutionary Algorithm (RVEA)
+    A tensorized implementation of the Reference Vector Guided Evolutionary Algorithm (RVEA) based on CDP
     for multi-objective optimization problems.
 
     :references:
@@ -77,7 +77,7 @@ class RVEA(Algorithm):
         self.device = device
 
         if self.selection is None:
-            self.selection = ref_vec_guided
+            self.selection = ref_vec_guided2
         if self.mutation is None:
             self.mutation = polynomial_mutation
         if self.crossover is None:
@@ -94,6 +94,7 @@ class RVEA(Algorithm):
 
         self.pop = Mutable(population)
         self.fit = Mutable(torch.full((self.pop_size, self.n_objs), torch.inf, device=device))
+        self.cons = None
         self.reference_vector = Mutable(v)
         self.init_v = v0
         self.gen = Mutable(torch.tensor(0, dtype=int, device=device))
@@ -104,7 +105,12 @@ class RVEA(Algorithm):
 
         Calls the `init_step` of the algorithm if overwritten; otherwise, its `step` method will be invoked.
         """
-        self.fit = self.evaluate(self.pop)
+        fitness = self.evaluate(self.pop)
+        if isinstance(fitness, tuple):
+            self.fit = fitness[0]
+            self.cons = fitness[1]
+        else:
+            self.fit = fitness
 
     def _rv_adaptation(self, pop_obj: torch.Tensor):
         max_vals = nanmax(pop_obj, dim=0)[0]
@@ -123,10 +129,10 @@ class RVEA(Algorithm):
         pop = self.pop[sorted_indices[mating_pool]]
         return pop
 
-    def _update_pop_and_rv(self, survivor: torch.Tensor, survivor_fit: torch.Tensor):
+    def _update_pop_and_rv(self, survivor: torch.Tensor, survivor_fit: torch.Tensor, survivor_cons: torch.Tensor):
         self.pop = survivor
         self.fit = survivor_fit
-
+        self.cons = survivor_cons
         self.reference_vector = torch.cond(
             self.gen % self.rv_adapt_every == 0, self._rv_adaptation, self._no_rv_adaptation, (survivor_fit,)
         )
@@ -136,18 +142,38 @@ class RVEA(Algorithm):
 
         self.gen = self.gen + torch.tensor(1)
         pop = self._mating_pool()
-        crossovered = self.crossover(pop)
+        if self.crossover is DE_crossover:
+            CR = torch.ones((self.pop_size, self.dim))
+            F = torch.ones((self.pop_size, self.dim))*0.5
+            pop1 = self._mating_pool()
+            pop2 = self._mating_pool()
+            crossovered = self.crossover(self.pop, pop1, pop2, CR, F)
+        else:
+            pop = self._mating_pool()
+            crossovered = self.crossover(pop)
+
         offspring = self.mutation(crossovered, self.lb, self.ub)
         offspring = clamp(offspring, self.lb, self.ub)
         off_fit = self.evaluate(offspring)
-        merge_pop = torch.cat([self.pop, offspring], dim=0)
-        merge_fit = torch.cat([self.fit, off_fit], dim=0)
+        if isinstance(off_fit, tuple):
+            iscons = True
+            off_cons = off_fit[1]
+            off_fit = off_fit[0]
+            merge_cons = torch.cat([self.cons, off_cons], dim=0)
+            merge_pop = torch.cat([self.pop, offspring], dim=0)
+            merge_fit = torch.cat([self.fit, off_fit], dim=0)
+        else:
+            merge_pop = torch.cat([self.pop, offspring], dim=0)
+            merge_fit = torch.cat([self.fit, off_fit], dim=0)
+            merge_cons = torch.zeros((merge_fit.size(0), 1))
 
-        survivor, survivor_fit = self.selection(
+
+        survivor, survivor_fit, survivor_cons = self.selection(
             merge_pop,
             merge_fit,
+            merge_cons,
             self.reference_vector,
             (self.gen / self.max_gen) ** self.alpha,
         )
 
-        self._update_pop_and_rv(survivor, survivor_fit)
+        self._update_pop_and_rv(survivor, survivor_fit, survivor_cons)

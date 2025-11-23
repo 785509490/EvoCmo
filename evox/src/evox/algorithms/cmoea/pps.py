@@ -35,15 +35,6 @@ def weighted_sum(f, w):
 
 
 def shuffle_rows(matrix: torch.Tensor) -> torch.Tensor:
-    """
-    Shuffle each row of the given matrix independently without using a for loop.
-
-    Args:
-        matrix (torch.Tensor): A 2D tensor.
-
-    Returns:
-        torch.Tensor: A new tensor with each row shuffled differently.
-    """
     rows, cols = matrix.size()
 
     permutations = torch.argsort(torch.rand(rows, cols, device=matrix.device), dim=1)
@@ -64,18 +55,6 @@ class PPS(Algorithm):
         crossover_op: Optional[Callable] = None,
         device: torch.device | None = None,
     ):
-        """Initializes the TensorMOEA/D algorithm.
-
-        :param pop_size: The size of the population.
-        :param n_objs: The number of objective functions in the optimization problem.
-        :param lb: The lower bounds for the decision variables (1D tensor).
-        :param ub: The upper bounds for the decision variables (1D tensor).
-        :param aggregate_op: The aggregation function to use for the algorithm (optional).
-        :param selection_op: The selection operation for evolutionary strategy (optional).
-        :param mutation_op: The mutation operation, defaults to `polynomial_mutation` if not provided (optional).
-        :param crossover_op: The crossover operation, defaults to `simulated_binary` if not provided (optional).
-        :param device: The device on which computations should run (optional). Defaults to PyTorch's default device.
-        """
 
         super().__init__()
         self.pop_size = pop_size
