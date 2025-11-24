@@ -15,13 +15,13 @@ device = "cuda"
 # Use GPU first to run the code.
 torch.set_default_device(device)
 print(torch.get_default_device())
-max_gen = 500
+max_gen = 1000
 
 # Init the problem, algorithm and workflow.
 prob = LIRCMOP9()
 pf = prob.pf()
 m = prob.m
-algo = GMPEA(pop_size=100, n_objs=prob.m, lb=-torch.zeros(prob.d), ub=torch.ones(prob.d), max_gen=max_gen, crossover_op=DE_crossover)
+algo = GMPEA(pop_size=1000, n_objs=prob.m, lb=-torch.zeros(prob.d), ub=torch.ones(prob.d), max_gen=max_gen, crossover_op=DE_crossover)
 
 
 monitor = EvalMonitor()
